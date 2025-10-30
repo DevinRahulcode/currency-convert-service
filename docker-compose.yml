@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # MySQL Database Service
+  mysql-db:
+    image: mysql:8.0
+    container_name: mysql-currency-db
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: currency_db
+
+      # --- THE FIX ---
+      # This is the ONLY variable needed to set the root password.
+      MYSQL_ROOT_PASSWORD: Devin@07
+      # (We removed MYSQL_USER: root and MYSQL_PASSWORD: Devin@07)
+      # --- END FIX ---
+
+    volumes:
+      - mysql-currency-data:/var/lib/mysql
+    networks:
+      - currency-network
+    healthcheck:
+      # This healthcheck is still correct, as it uses the root password
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pDevin@07"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Spring Boot Application Service
+  currency-service:
+    build: .
+    container_name: currency-app-service
+    ports:
+      - "8080:8080"
+    environment:
+      # This configuration is correct
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/currency_db?useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: Devin@07
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQLDialect
+    networks:
+      - currency-network
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+volumes:
+  mysql-currency-data:
+
+networks:
+  currency-network:
